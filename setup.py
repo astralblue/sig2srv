@@ -17,7 +17,8 @@ requirements = [
 
 setup_requirements = [
     'pytest-runner',
-    # TODO(astralblue): put setup requirements (distutils extensions, etc.) here
+    # TODO(astralblue): put setup requirements (distutils extensions, etc.)
+    # here
 ]
 
 test_requirements = [
@@ -28,7 +29,8 @@ test_requirements = [
 setup(
     name='sig2srv',
     version='0.1.0',
-    description="sig2srv converts incoming signals into suitable service(8) commands.",
+    description="sig2srv converts incoming signals into suitable service(8) "
+                "commands.",
     long_description=readme + '\n\n' + history,
     author="Eugene M. Kim",
     author_email='astralblue@gmail.com',
