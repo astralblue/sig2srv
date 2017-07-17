@@ -28,7 +28,11 @@ sig2srv converts incoming signals into suitable service(8) commands.
 Features
 --------
 
-* TODO
+* Turns SIGTERM into "service XYZ stop" commands.
+* Turns SIGHUP into "service XYZ restart" commands.
+* Runs "service XYZ status" periodically and exits with a nonzero status if the
+  service is no longer seen as running, i.e. the status command returns a
+  nonzero status.
 
 Credits
 ---------
