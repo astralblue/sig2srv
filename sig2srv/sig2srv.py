@@ -88,6 +88,7 @@ class Sig2Srv(WithEventLoop):
         if self.__state != self.State.RUNNING:
             logger.debug("loop not running, doing nothing")
             return
+        self.__state = self.State.STOPPING
         result = await self.__service_command('stop')
         if result != 0:
             self.__state = self.State.UNKNOWN
