@@ -91,7 +91,7 @@ class Sig2Srv(WithEventLoop):
         result = await self.__service_command('stop')
         if result != 0:
             self.__state = self.State.UNKNOWN
-            self.__fatal("failed to stop service while restarting")
+            self.__fatal("failed to stop service while stopping")
         self.__state = self.State.STOPPED
         self.__finished.set()
 
