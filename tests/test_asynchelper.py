@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch, ANY
 
 import pytest
 
-from sig2srv.asynchelper import WithEventLoop, PeriodicCaller
+from sig2srv.asynchelper import WithEventLoop, PeriodicCaller, periodic_calls
 
 
 class TestWithEventLoop:
@@ -294,3 +294,16 @@ class TestPeriodicCaller:
         assert raised == caught
         assert raised
         assert caught
+
+    @patch('sig2srv.asynchelper.PeriodicCaller', autospec=True)
+    def test_periodic_calls(self, cls):
+        obj = MagicMock()
+        cls.return_value = obj
+        obj.start = MagicMock()
+        obj.stop = MagicMock()
+        with periodic_calls(1, 2, 3, omg=4, at=5, wtf=6) as caller:
+            cls.assert_called_once_with(1, 2, 3, omg=4, wtf=6)
+            assert caller is obj
+            obj.start.assert_called_once_with(at=5)
+            obj.stop.assert_not_called()
+        obj.stop.assert_called_once_with()
