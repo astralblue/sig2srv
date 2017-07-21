@@ -323,3 +323,18 @@ class TestSignalHandled:
             loop.remove_signal_handler.assert_not_called()
         loop.add_signal_handler.assert_called_once_with('SIG', 'HANDLER')
         loop.remove_signal_handler.assert_called_once_with('SIG')
+
+    @patch('sig2srv.asynchelper.get_event_loop', autospec=True)
+    def test_with_default_loop(self, get_event_loop):
+        loop = MagicMock(spec=['add_signal_handler', 'remove_signal_handler'])
+        loop.add_signal_handler = MagicMock()
+        loop.remove_signal_handler = MagicMock()
+        get_event_loop.return_value = loop
+        manager = signal_handled('SIG', 'HANDLER')
+        loop.add_signal_handler.assert_not_called()
+        loop.remove_signal_handler.assert_not_called()
+        with manager:
+            loop.add_signal_handler.assert_called_once_with('SIG', 'HANDLER')
+            loop.remove_signal_handler.assert_not_called()
+        loop.add_signal_handler.assert_called_once_with('SIG', 'HANDLER')
+        loop.remove_signal_handler.assert_called_once_with('SIG')

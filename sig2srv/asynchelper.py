@@ -226,6 +226,8 @@ def signal_handled(signum, handler, loop=None):
     sleeping again (but this time SIGCONT won't be handled)
     finishing
     """
+    if loop is None:
+        loop = get_event_loop()
     logger.debug("signal %r -> handler %r: adding", signum, handler)
     loop.add_signal_handler(signum, handler)
     logger.debug("signal %r -> handler %r: added", signum, handler)
