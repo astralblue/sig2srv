@@ -6,7 +6,8 @@ from unittest.mock import MagicMock, patch, ANY
 
 import pytest
 
-from sig2srv.asynchelper import WithEventLoop, PeriodicCaller, periodic_calls
+from sig2srv.asynchelper import (WithEventLoop, PeriodicCaller, periodic_calls,
+                                 signal_handled)
 
 
 class TestWithEventLoop:
@@ -307,3 +308,18 @@ class TestPeriodicCaller:
             obj.start.assert_called_once_with(at=5)
             obj.stop.assert_not_called()
         obj.stop.assert_called_once_with()
+
+
+class TestSignalHandled:
+    def test_main_behavior(self):
+        loop = MagicMock(spec=['add_signal_handler', 'remove_signal_handler'])
+        loop.add_signal_handler = MagicMock()
+        loop.remove_signal_handler = MagicMock()
+        manager = signal_handled('SIG', 'HANDLER', loop=loop)
+        loop.add_signal_handler.assert_not_called()
+        loop.remove_signal_handler.assert_not_called()
+        with manager:
+            loop.add_signal_handler.assert_called_once_with('SIG', 'HANDLER')
+            loop.remove_signal_handler.assert_not_called()
+        loop.add_signal_handler.assert_called_once_with('SIG', 'HANDLER')
+        loop.remove_signal_handler.assert_called_once_with('SIG')
