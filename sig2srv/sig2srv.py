@@ -76,7 +76,7 @@ class Sig2Srv(WithEventLoop):
             raise self.__fatal_error
         assert self.__state == self.State.STOPPED
 
-    async def __check_status(self):
+    async def __check_status(self, timestamp):
         result = await self.__service_command('status')
         if result != 0 and self.__state == self.State.RUNNING:
             self.__fatal("service stopped unexpectedly")

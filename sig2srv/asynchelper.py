@@ -129,7 +129,7 @@ class PeriodicCaller(WithEventLoop):
         # Do not use asyncio.iscoroutinefunction() to test self.__cb itself,
         # because it fails to catch ones with partial()-ly bound arguments.
         try:
-            r = self.__cb()
+            r = self.__cb(self.__next)
         except Exception as e:
             self.__handle_exc(e)
             self.__schedule_next()
