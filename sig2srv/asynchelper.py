@@ -192,7 +192,7 @@ def periodic_calls(*poargs, at=None, **kwargs):
 
 
 @contextmanager
-def signal_handled(signum, handler, loop=None):
+def signal_handled(signum, handler, *, loop=None):
     """Install/uninstall a signal handler in the `specs` upon enter/exit.
 
     :param signum: signal to catch.
