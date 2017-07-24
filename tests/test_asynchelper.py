@@ -270,6 +270,16 @@ class TestPeriodicCaller:
             obj.stop.assert_not_called()
         obj.stop.assert_called_once_with()
 
+    @patch('sig2srv.asynchelper.PeriodicCaller', autospec=True)
+    def test_periodic_calls_run_stop_on_exc(self, cls):
+        obj = MagicMock()
+        cls.return_value = obj
+        obj.stop = MagicMock()
+        with pytest.raises(RuntimeError):
+            with periodic_calls(lambda ts: None, 10):
+                raise RuntimeError("OMG")
+        obj.stop.assert_called_once_with()
+
 
 class TestSignalHandled:
     def test_main_behavior(self):

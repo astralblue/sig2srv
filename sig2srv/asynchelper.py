@@ -187,8 +187,10 @@ def periodic_calls(*poargs, at=None, **kwargs):
     """
     caller = PeriodicCaller(*poargs, **kwargs)
     caller.start(at=at)
-    yield caller
-    caller.stop()
+    try:
+        yield caller
+    finally:
+        caller.stop()
 
 
 @contextmanager
