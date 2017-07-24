@@ -282,10 +282,15 @@ class TestPeriodicCaller:
 
 
 class TestSignalHandled:
-    def test_main_behavior(self):
+    @pytest.fixture
+    def loop(self):
+        """Mock loop with add_signal_handler() and remove_signal_handler()."""
         loop = MagicMock(spec=['add_signal_handler', 'remove_signal_handler'])
         loop.add_signal_handler = MagicMock()
         loop.remove_signal_handler = MagicMock()
+        return loop
+
+    def test_main_behavior(self, loop):
         manager = signal_handled('SIG', 'HANDLER', loop=loop)
         loop.add_signal_handler.assert_not_called()
         loop.remove_signal_handler.assert_not_called()
@@ -296,10 +301,7 @@ class TestSignalHandled:
         loop.remove_signal_handler.assert_called_once_with('SIG')
 
     @patch('sig2srv.asynchelper.get_event_loop', autospec=True)
-    def test_with_default_loop(self, get_event_loop):
-        loop = MagicMock(spec=['add_signal_handler', 'remove_signal_handler'])
-        loop.add_signal_handler = MagicMock()
-        loop.remove_signal_handler = MagicMock()
+    def test_with_default_loop(self, get_event_loop, loop):
         get_event_loop.return_value = loop
         manager = signal_handled('SIG', 'HANDLER')
         loop.add_signal_handler.assert_not_called()
