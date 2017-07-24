@@ -312,6 +312,12 @@ class TestSignalHandled:
         loop.add_signal_handler.assert_called_once_with('SIG', 'HANDLER')
         loop.remove_signal_handler.assert_called_once_with('SIG')
 
+    def test_handler_is_removed_on_exc(self, loop):
+        with pytest.raises(RuntimeError):
+            with signal_handled('SIG', 'HANDLER', loop=loop):
+                raise RuntimeError("OMG")
+        loop.remove_signal_handler.assert_called_once_with('SIG')
+
     def test_loop_is_keyword_only(self):
         with pytest.raises(TypeError):
             signal_handled('SIG', 'HANDLER', 'LOOP')

@@ -233,10 +233,12 @@ def signal_handled(signum, handler, *, loop=None):
     logger.debug("signal %r -> handler %r: adding", signum, handler)
     loop.add_signal_handler(signum, handler)
     logger.debug("signal %r -> handler %r: added", signum, handler)
-    yield
-    logger.debug("signal %r -> handler %r: removing", signum, handler)
-    loop.remove_signal_handler(signum)
-    logger.debug("signal %r -> handler %r: removed", signum, handler)
+    try:
+        yield
+    finally:
+        logger.debug("signal %r -> handler %r: removing", signum, handler)
+        loop.remove_signal_handler(signum)
+        logger.debug("signal %r -> handler %r: removed", signum, handler)
 
 
 if __name__ == '__main__':
