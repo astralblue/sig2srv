@@ -1,6 +1,6 @@
 """`asyncio` utilities."""
 
-from asyncio import AbstractEventLoop, get_event_loop, iscoroutine
+from asyncio import AbstractEventLoop, coroutine, get_event_loop, iscoroutine
 from contextlib import contextmanager
 
 from .logging import logger
@@ -148,9 +148,10 @@ class PeriodicCaller(WithEventLoop):
                 task = self.loop.create_task(self.__await_coroutine(r))
                 self.__pending = task
 
-    async def __await_coroutine(self, coro):
+    @coroutine
+    def __await_coroutine(self, coro):
         try:
-            r = await coro
+            r = yield from coro
         except Exception as e:
             self.__handle_exc(e)
         else:

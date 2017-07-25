@@ -1,4 +1,4 @@
-from asyncio import (CancelledError, Event, Task, ensure_future,
+from asyncio import (CancelledError, Event, Task, coroutine, ensure_future,
                      get_event_loop, sleep)
 from contextlib import contextmanager
 import sys
@@ -235,7 +235,8 @@ class TestPeriodicCaller:
     def test_on_ret_called_with_async_fg_retval(self, event_loop):
         tm = TimeMachine(event_loop=event_loop)
         sentinel = ensure_future(sleep(2), loop=event_loop)
-        async def cb(ts):
+        @coroutine
+        def cb(ts):
             sentinel.cancel()
             return 123
         captured = []
@@ -252,7 +253,8 @@ class TestPeriodicCaller:
         tm = TimeMachine(event_loop=event_loop)
         sentinel = ensure_future(sleep(2), loop=event_loop)
         raised = []
-        async def cb(ts):
+        @coroutine
+        def cb(ts):
             sentinel.cancel()
             try:
                 raise RuntimeError("omg")
@@ -277,7 +279,8 @@ class TestPeriodicCaller:
         wm = 0
         tm = TimeMachine(event_loop=event_loop)
         dec_start = event_loop.time() + 31
-        async def cb(ts):
+        @coroutine
+        def cb(ts):
             nonlocal cur, wm
             cur += 1
             wm = max(cur, wm)
@@ -288,7 +291,7 @@ class TestPeriodicCaller:
                 tm.advance_by(1)
             sleep_duration = ts + 30 - event_loop.time()
             assert sleep_duration > 0
-            await sleep(sleep_duration, loop=event_loop)
+            yield from sleep(sleep_duration, loop=event_loop)
             cur -= 1
             if cur == 0:
                 event_loop.stop()
