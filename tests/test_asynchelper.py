@@ -179,6 +179,20 @@ class TestPeriodicCaller:
         called = self.__cb_timestamp_test(event_loop, scheduled, start_at)
         assert scheduled == called
 
+    def test_stop_can_be_called_from_within(self, event_loop):
+        tm = TimeMachine(event_loop=event_loop)
+        call_count = 0
+        def cb(ts):
+            nonlocal call_count
+            call_count += 1
+            tm.advance_by(60)
+            pc.stop()
+        pc = PeriodicCaller(cb, 10, loop=event_loop)
+        pc.start()
+        tm.advance_by(10)
+        event_loop.run_until_complete(sleep(60, loop=event_loop))
+        assert call_count == 1
+
     def test_on_ret_called_with_sync_retval(self, event_loop):
         tm = TimeMachine(event_loop=event_loop)
         sentinel = ensure_future(sleep(2), loop=event_loop)
