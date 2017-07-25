@@ -10,12 +10,50 @@ from .logging import logger, __
 from .asynchelper import periodic_calls, WithEventLoop, signal_handled
 
 
+class ServiceCommandRunner(WithEventLoop):
+    """Serialized service(8) command runner.
+
+    :param `str` name: service name, such as ``apache``.
+    """
+
+    def __init__(self, *poargs, name, **kwargs):
+        super().__init__(*poargs, **kwargs)
+        self.__name = name
+        self.__lock = Lock()
+
+    @property
+    def name(self):
+        """The service name."""
+        return self.__name
+
+    async def run(self, *args):
+        """Run ``service <name> <args>``.
+
+        Do not permit concurrent runs: If another one is already running, wait
+        for it to finish.
+
+        :param args: arguments to put after ``service <name>``.
+            Its first element should be a service(8) verb such as ``start``.
+        :return: the exit status of the given command.
+        """
+        async with self.__lock:
+            args = ('service', self.__name) + args
+            logger.debug(__("running {}", args))
+            proc = await create_subprocess_exec(*args, loop=self.loop)
+            result = await proc.wait()
+            logger.debug(__("{} returned {}", args, result))
+            return result
+
+
 class FatalError(RuntimeError):
     """Fatal errors that abort the execution of the main routine."""
 
 
-class Sig2Srv(WithEventLoop):
-    """Signal-to-service bridge."""
+class Sig2Srv:
+    """Signal-to-service bridge.
+
+    :param `ServiceCommandRunner` runner: service command runner.
+    """
 
     class State(Enum):
         """`Sig2Srv` state."""
@@ -26,14 +64,18 @@ class Sig2Srv(WithEventLoop):
         STOPPING = 3
         UNKNOWN = 4
 
-    def __init__(self, *poargs, service, **kwargs):
+    def __init__(self, *poargs, runner, **kwargs):
         """Initialize this instance."""
         logger.debug(__("initializing {!r}", self))
         super().__init__(*poargs, **kwargs)
-        self.__service = service
-        self.__service_lock = Lock()
+        self.__runner = runner
         self.__finished = Event()
         self.__state = self.State.STOPPED
+
+    @property
+    def runner(self):
+        """The `ServiceCommandRunner` for this instance."""
+        return self.__runner
 
     @property
     def __state(self):
@@ -45,7 +87,7 @@ class Sig2Srv(WithEventLoop):
         self.__state_ = new_state
 
     def __signal_handled(self, *poargs, **kwargs):
-        return signal_handled(*poargs, loop=self.loop, **kwargs)
+        return signal_handled(*poargs, loop=self.__runner.loop, **kwargs)
 
     def __fatal(self, *poargs, **kwargs):
         self.__finished.set()
@@ -62,7 +104,7 @@ class Sig2Srv(WithEventLoop):
              self.__signal_handled(SIGHUP, self.__handle_restart_signal), \
              periodic_calls(self.__check_status, 5):
             self.__state = self.State.STARTING
-            result = await self.__service_command('start')
+            result = await self.__runner.run('start')
             if result != 0:
                 self.__state = self.State.STOPPED
                 raise FatalError("failed to start service")
@@ -77,19 +119,19 @@ class Sig2Srv(WithEventLoop):
         assert self.__state == self.State.STOPPED
 
     async def __check_status(self, timestamp):
-        result = await self.__service_command('status')
+        result = await self.__runner.run('status')
         if result != 0 and self.__state == self.State.RUNNING:
             self.__fatal("service stopped unexpectedly")
 
     def __handle_stop_signal(self):
-        self.loop.create_task(self.__stop())
+        self.__runner.loop.create_task(self.__stop())
 
     async def __stop(self):
         if self.__state != self.State.RUNNING:
             logger.debug("loop not running, doing nothing")
             return
         self.__state = self.State.STOPPING
-        result = await self.__service_command('stop')
+        result = await self.__runner.run('stop')
         if result != 0:
             self.__state = self.State.UNKNOWN
             self.__fatal("failed to stop service while stopping")
@@ -97,29 +139,20 @@ class Sig2Srv(WithEventLoop):
         self.__finished.set()
 
     def __handle_restart_signal(self):
-        self.loop.create_task(self.__restart())
+        self.__runner.loop.create_task(self.__restart())
 
     async def __restart(self):
         if self.__state != self.State.RUNNING:
             logger.debug("loop not running, doing nothing")
             return
         self.__state = self.State.STOPPING
-        result = await self.__service_command('stop')
+        result = await self.__runner.run('stop')
         if result != 0:
             self.__state = self.State.UNKNOWN
             self.__fatal("failed to stop service while restarting")
         self.__state = self.State.STARTING
-        result = await self.__service_command('start')
+        result = await self.__runner.run('start')
         if result != 0:
             self.__state = self.State.STOPPED
             self.__fatal("failed to start service while restarting")
         self.__state = self.State.RUNNING
-
-    async def __service_command(self, *args):
-        async with self.__service_lock:
-            args = ('service', self.__service) + args
-            logger.debug(__("running {}", args))
-            proc = await create_subprocess_exec(*args, loop=self.loop)
-            result = await proc.wait()
-            logger.debug(__("{} returned {}", args, result))
-            return result

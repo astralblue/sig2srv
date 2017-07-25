@@ -7,7 +7,7 @@ from logging import StreamHandler, DEBUG
 import sys
 
 from .logging import logger
-from .sig2srv import Sig2Srv, FatalError
+from .sig2srv import Sig2Srv, ServiceCommandRunner, FatalError
 
 
 def main():
@@ -23,7 +23,8 @@ def main():
     if args.debug:
         logger.setLevel(DEBUG)
     with closing(get_event_loop()) as loop:
-        sig2srv = Sig2Srv(service=args.service, loop=loop)
+        runner = ServiceCommandRunner(name=args.service, loop=loop)
+        sig2srv = Sig2Srv(runner=runner, loop=loop)
         try:
             loop.run_until_complete(sig2srv.run())
         except FatalError as e:
