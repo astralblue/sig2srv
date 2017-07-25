@@ -239,8 +239,3 @@ def signal_handled(signum, handler, *, loop=None):
         logger.debug("signal %r -> handler %r: removing", signum, handler)
         loop.remove_signal_handler(signum)
         logger.debug("signal %r -> handler %r: removed", signum, handler)
-
-
-if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
