@@ -22,6 +22,7 @@ test_requirements = [
     'pytest',
     'pytest-asyncio',
     'pytest-timeout',
+    'asynciotimemachine',
 ]
 
 setup(

@@ -4,11 +4,11 @@ from contextlib import contextmanager
 import sys
 from unittest.mock import MagicMock, patch, ANY
 
+from asynciotimemachine import TimeMachine
 import pytest
 
 from sig2srv.asynchelper import (WithEventLoop, PeriodicCaller, periodic_calls,
                                  signal_handled)
-from tests.asynciotesthelper import TimeMachine
 
 
 class TestWithEventLoop:
