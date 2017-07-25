@@ -73,6 +73,14 @@ class Sig2Srv:
         self.__state = self.State.STOPPED
 
     @property
+    def state(self):
+        """The state of this bridge.
+
+        The value is one of the `Sig2Srv.State` enums.
+        """
+        return self.__state
+
+    @property
     def runner(self):
         """The `ServiceCommandRunner` for this instance."""
         return self.__runner
