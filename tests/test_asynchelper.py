@@ -271,6 +271,59 @@ class TestPeriodicCaller:
         assert raised
         assert caught
 
+    @pytest.mark.timeout(5)
+    def test_async_bg(self, event_loop):
+        cur = 0
+        wm = 0
+        tm = TimeMachine(event_loop=event_loop)
+        dec_start = event_loop.time() + 31
+        async def cb(ts):
+            nonlocal cur, wm
+            cur += 1
+            wm = max(cur, wm)
+            if cur == 10:
+                pc.stop()
+                tm.advance_to(dec_start)
+            else:
+                tm.advance_by(1)
+            sleep_duration = ts + 30 - event_loop.time()
+            assert sleep_duration > 0
+            await sleep(sleep_duration, loop=event_loop)
+            cur -= 1
+            if cur == 0:
+                event_loop.stop()
+            else:
+                tm.advance_by(1)
+        pc = PeriodicCaller(cb, 1, loop=event_loop, bg=True)
+        pc.start()
+        tm.advance_by(1)
+        event_loop.run_forever()
+        assert cur == 0
+        assert wm == 10
+
+    def test_async_bg_callable(self, event_loop):
+        tm = TimeMachine(event_loop=event_loop)
+        handles = []
+        remaining = 10
+        async def cb(ts):
+            nonlocal remaining
+            tm.advance_by(1)
+            ret = remaining
+            if remaining == 0:
+                pc.stop()
+            else:
+                remaining -= 1
+            return ret
+        def bg_callable(handle):
+            handles.append(handle)
+        pc = PeriodicCaller(cb, 1, loop=event_loop, bg=bg_callable)
+        pc.start()
+        tm.advance_by(1)
+        event_loop.run_until_complete(sleep(remaining, loop=event_loop))
+        assert remaining == 0
+        assert ([handle.result() for handle in handles] ==
+                list(reversed(range(11))))
+
     @patch('sig2srv.asynchelper.PeriodicCaller', autospec=True)
     def test_periodic_calls(self, cls):
         obj = MagicMock()
