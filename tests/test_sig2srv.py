@@ -5,7 +5,7 @@
 
 from asyncio import coroutine, get_event_loop
 from logging import StreamHandler, DEBUG
-from os import kill
+from os import getpid, kill
 from signal import SIGHUP, SIGTERM
 from unittest.mock import MagicMock, PropertyMock, call, patch, ANY
 
@@ -148,7 +148,7 @@ class TestSig2Srv:
         def run(verb, *args):
             nonlocal signaled
             if not signaled:
-                kill(0, SIGTERM)
+                kill(getpid(), SIGTERM)
                 signaled = True
             return 0
         sig2srv.runner.run.side_effect = run
@@ -168,7 +168,7 @@ class TestSig2Srv:
                 tm.advance_by(5)
             elif verb == 'status':
                 assert sig2srv.state is Sig2Srv.State.RUNNING
-                kill(0, SIGTERM)
+                kill(getpid(), SIGTERM)
             elif verb == 'stop':
                 assert sig2srv.state is Sig2Srv.State.STOPPING
             return 0
@@ -189,10 +189,10 @@ class TestSig2Srv:
             if verb == 'start':
                 assert sig2srv.state is Sig2Srv.State.STARTING
                 if not restarted:
-                    kill(0, SIGHUP)
+                    kill(getpid(), SIGHUP)
                     restarted = True
                 elif not stopped:
-                    kill(0, SIGTERM)
+                    kill(getpid(), SIGTERM)
                     stopped = True
             elif verb == 'stop':
                 assert sig2srv.state is Sig2Srv.State.STOPPING
@@ -210,7 +210,7 @@ class TestSig2Srv:
         @coroutine
         def run(verb, *args):
             if verb == 'start':
-                kill(0, SIGTERM)
+                kill(getpid(), SIGTERM)
             return 1 if verb == 'stop' else 0
         sig2srv.runner.run.side_effect = run
         with pytest.raises(FatalError):
@@ -225,7 +225,7 @@ class TestSig2Srv:
         @coroutine
         def run(verb, *args):
             if verb == 'start':
-                kill(0, SIGHUP)
+                kill(getpid(), SIGHUP)
             return 1 if verb == 'stop' else 0
         sig2srv.runner.run.side_effect = run
         with pytest.raises(FatalError):
@@ -243,7 +243,7 @@ class TestSig2Srv:
             nonlocal started
             if verb == 'start':
                 if not started:
-                    kill(0, SIGHUP)
+                    kill(getpid(), SIGHUP)
                     started = True
                 else:
                     return 1
