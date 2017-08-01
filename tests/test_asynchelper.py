@@ -88,7 +88,7 @@ class TestPeriodicCaller:
     def test_init_does_not_automatically_schedule_tasks(self, event_loop):
         event_loop = MagicMock(spec=event_loop, wraps=event_loop)
         PeriodicCaller(lambda: None, 10, loop=event_loop)
-        event_loop.call_at.assert_not_called()
+        assert not event_loop.call_at.call_args_list
 
     def test_start_starts_one_task(self, event_loop):
         event_loop = MagicMock(spec=event_loop, wraps=event_loop)
@@ -121,7 +121,7 @@ class TestPeriodicCaller:
         pc.start()
         event_loop.call_at.reset_mock()
         pc.start()
-        event_loop.call_at.assert_not_called()
+        assert not event_loop.call_at.call_args_list
 
     def test_stop_stops_current_task(self, event_loop):
         event_loop = MagicMock(spec=event_loop, wraps=event_loop)
@@ -129,7 +129,7 @@ class TestPeriodicCaller:
         event_loop.call_at.return_value = handle
         pc = PeriodicCaller(lambda: None, 10, loop=event_loop)
         pc.start()
-        handle.cancel.assert_not_called()
+        assert not handle.cancel.call_args_list
         pc.stop()
         handle.cancel.assert_called_once_with()
 
@@ -139,13 +139,13 @@ class TestPeriodicCaller:
         event_loop.call_at.return_value = handle
         pc = PeriodicCaller(lambda: None, 10, loop=event_loop)
         pc.stop()
-        handle.cancel.assert_not_called()
+        assert not handle.cancel.call_args_list
         pc.start()
         pc.stop()
         handle.cancel.assert_called_once_with()
         handle.cancel.reset_mock()
         pc.stop()
-        handle.cancel.assert_not_called()
+        assert not handle.cancel.call_args_list
 
     def __cb_timestamp_test(self, event_loop, scheduled, start_at):
         tm = TimeMachine(event_loop=event_loop)
@@ -340,7 +340,7 @@ class TestPeriodicCaller:
             cls.assert_called_once_with(1, 2, 3, omg=4, wtf=6)
             assert caller is obj
             obj.start.assert_called_once_with(at=5)
-            obj.stop.assert_not_called()
+            assert not obj.stop.call_args_list
         obj.stop.assert_called_once_with()
 
     @patch('sig2srv.asynchelper.PeriodicCaller', autospec=True)
@@ -365,11 +365,11 @@ class TestSignalHandled:
 
     def test_main_behavior(self, loop):
         manager = signal_handled('SIG', 'HANDLER', loop=loop)
-        loop.add_signal_handler.assert_not_called()
-        loop.remove_signal_handler.assert_not_called()
+        assert not loop.add_signal_handler.call_args_list
+        assert not loop.remove_signal_handler.call_args_list
         with manager:
             loop.add_signal_handler.assert_called_once_with('SIG', 'HANDLER')
-            loop.remove_signal_handler.assert_not_called()
+            assert not loop.remove_signal_handler.call_args_list
         loop.add_signal_handler.assert_called_once_with('SIG', 'HANDLER')
         loop.remove_signal_handler.assert_called_once_with('SIG')
 
@@ -377,11 +377,11 @@ class TestSignalHandled:
     def test_with_default_loop(self, get_event_loop, loop):
         get_event_loop.return_value = loop
         manager = signal_handled('SIG', 'HANDLER')
-        loop.add_signal_handler.assert_not_called()
-        loop.remove_signal_handler.assert_not_called()
+        assert not loop.add_signal_handler.call_args_list
+        assert not loop.remove_signal_handler.call_args_list
         with manager:
             loop.add_signal_handler.assert_called_once_with('SIG', 'HANDLER')
-            loop.remove_signal_handler.assert_not_called()
+            assert not loop.remove_signal_handler.call_args_list
         loop.add_signal_handler.assert_called_once_with('SIG', 'HANDLER')
         loop.remove_signal_handler.assert_called_once_with('SIG')
 

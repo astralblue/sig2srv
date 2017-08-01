@@ -110,12 +110,12 @@ class TestSig2Srv:
                         call(SIGTERM, ANY),
                 ])
                 ash.reset_mock()
-                rsh.assert_not_called()
+                assert not rsh.call_args_list
                 return 1
             sig2srv.runner.run.side_effect = run
             with pytest.raises(FatalError):
                 event_loop.run_until_complete(sig2srv.run())
-            ash.assert_not_called()
+            assert not ash.call_args_list
             assert sorted(rsh.call_args_list) == sorted([
                     call(SIGHUP),
                     call(SIGTERM),
