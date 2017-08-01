@@ -28,7 +28,7 @@ test_requirements = [
 
 setup(
     name='sig2srv',
-    version='0.1.0',
+    version='0.1.1',
     description="sig2srv converts incoming signals into suitable service(8) "
                 "commands.",
     long_description=readme + '\n\n' + history,
