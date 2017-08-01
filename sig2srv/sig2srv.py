@@ -6,11 +6,13 @@ from asyncio import Event, Lock, create_subprocess_exec
 from enum import Enum
 from signal import SIGTERM, SIGHUP
 
+from ctorrepr import CtorRepr
+
 from .logging import logger, __
 from .asynchelper import periodic_calls, WithEventLoop, signal_handled
 
 
-class ServiceCommandRunner(WithEventLoop):
+class ServiceCommandRunner(WithEventLoop, CtorRepr):
     """Serialized service(8) command runner.
 
     :param `str` name: service name, such as ``apache``.
@@ -20,6 +22,10 @@ class ServiceCommandRunner(WithEventLoop):
         super().__init__(*poargs, **kwargs)
         self.__name = name
         self.__lock = Lock()
+
+    def _collect_repr_args(self, poargs, kwargs):
+        super()._collect_repr_args(poargs, kwargs)
+        kwargs.update(name=self.__name)
 
     @property
     def name(self):
@@ -49,7 +55,7 @@ class FatalError(RuntimeError):
     """Fatal errors that abort the execution of the main routine."""
 
 
-class Sig2Srv:
+class Sig2Srv(CtorRepr):
     """Signal-to-service bridge.
 
     :param `ServiceCommandRunner` runner: service command runner.
@@ -71,6 +77,10 @@ class Sig2Srv:
         self.__runner = runner
         self.__finished = Event()
         self.__state = self.State.STOPPED
+
+    def _collect_repr_args(self, poargs, kwargs):
+        super()._collect_repr_args(poargs, kwargs)
+        kwargs.update(runner=self.__runner)
 
     @property
     def state(self):

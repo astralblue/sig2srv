@@ -2,8 +2,10 @@
 
 from logging import getLogger
 
+from ctorrepr import CtorRepr
 
-class BraceMessage:
+
+class BraceMessage(CtorRepr):
     """Brace-style message formatter.
 
     Taken from the Python logging cookbook.
@@ -14,6 +16,11 @@ class BraceMessage:
         self.fmt = fmt
         self.poargs = poargs
         self.kwargs = kwargs
+
+    def _collect_repr_args(self, poargs, kwargs):
+        super()._collect_repr_args(poargs, kwargs)
+        poargs[:0] = (self.fmt,) + self.poargs
+        kwargs.update(kwargs)
 
     def __str__(self):
         """Lazy-format the given logging arguments into the format string."""

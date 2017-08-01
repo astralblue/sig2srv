@@ -3,10 +3,12 @@
 from asyncio import AbstractEventLoop, coroutine, get_event_loop, iscoroutine
 from contextlib import contextmanager
 
+from ctorrepr import CtorRepr
+
 from .logging import logger
 
 
-class WithEventLoop:
+class WithEventLoop(CtorRepr):
     """A simple mixin that takes an optional event loop."""
 
     __slots__ = ('__loop',)
@@ -24,13 +26,17 @@ class WithEventLoop:
         super().__init__(*poargs, **kwargs)
         self.__loop = loop
 
+    def _collect_repr_args(self, poargs, kwargs):
+        super()._collect_repr_args(poargs, kwargs)
+        kwargs.update(loop=self.__loop)
+
     @property
     def loop(self):
         """Event loop given at the creation time, or `None` if not given."""
         return self.__loop
 
 
-class PeriodicCaller(WithEventLoop):
+class PeriodicCaller(WithEventLoop, CtorRepr):
     """A facility to run a callback periodically.
 
     :param `~collections.abc.Callable` cb: what to call periodically.
@@ -96,6 +102,11 @@ class PeriodicCaller(WithEventLoop):
         self.__on_exc = on_exc
         self.__next = None
         self.__pending = None
+
+    def _collect_repr_args(self, poargs, kwargs):
+        super()._collect_repr_args(poargs, kwargs)
+        poargs[:0] = self.__cb, self.__period
+        kwargs.update(bg=self.__bg, on_ret=self.__on_ret, on_exc=self.__on_exc)
 
     def start(self, at=None):
         """Start periodic calls.
