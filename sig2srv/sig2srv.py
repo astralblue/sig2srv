@@ -20,6 +20,7 @@ class ServiceCommandRunner(WithEventLoop, WithLog, CtorRepr):
     """
 
     def __init__(self, *poargs, name, **kwargs):
+        """Initialize this instance."""
         super().__init__(*poargs, **kwargs)
         self.__name = name
         self.__lock = Lock()
@@ -30,7 +31,7 @@ class ServiceCommandRunner(WithEventLoop, WithLog, CtorRepr):
 
     @property
     def name(self):
-        """The service name."""
+        """Return the service name."""
         return self.__name
 
     @coroutine
@@ -88,7 +89,7 @@ class Sig2Srv(WithLog, CtorRepr):
 
     @property
     def state(self):
-        """The state of this bridge.
+        """Return the state of this bridge.
 
         The value is one of the `Sig2Srv.State` enums.
         """
@@ -96,7 +97,7 @@ class Sig2Srv(WithLog, CtorRepr):
 
     @property
     def runner(self):
-        """The `ServiceCommandRunner` for this instance."""
+        """Return the `ServiceCommandRunner` for this instance."""
         return self.__runner
 
     @property
