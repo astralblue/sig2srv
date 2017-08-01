@@ -3,6 +3,7 @@
 """Main module."""
 
 from asyncio import Event, Lock, coroutine, create_subprocess_exec
+from contextlib import ExitStack
 from enum import Enum
 from signal import SIGTERM, SIGHUP
 
@@ -122,9 +123,11 @@ class Sig2Srv(WithLog, CtorRepr):
     def run(self):
         """Run the state machine."""
         assert self.__state == self.State.STOPPED
-        with self.__signal_handled(SIGTERM, self.__handle_stop_signal), \
-             self.__signal_handled(SIGHUP, self.__handle_restart_signal), \
-             periodic_calls(self.__check_status, 5):
+        with ExitStack() as stack:
+            sec = stack.enter_context
+            sec(self.__signal_handled(SIGTERM, self.__handle_stop_signal))
+            sec(self.__signal_handled(SIGHUP, self.__handle_restart_signal))
+            sec(periodic_calls(self.__check_status, 5))
             self.__state = self.State.STARTING
             result = yield from self.__runner.run('start')
             if result != 0:
