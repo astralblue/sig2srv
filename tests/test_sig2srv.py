@@ -15,6 +15,10 @@ import pytest
 from sig2srv.sig2srv import ServiceCommandRunner, Sig2Srv, FatalError
 from tests.eventloopfixture import event_loop
 
+from sig2srv.logging import logger
+logger.setLevel(DEBUG)
+logger.addHandler(StreamHandler())
+
 
 class TestServiceCommandRunner:
 
