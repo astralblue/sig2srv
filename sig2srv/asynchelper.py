@@ -5,10 +5,10 @@ from contextlib import contextmanager
 
 from ctorrepr import CtorRepr
 
-from .logging import logger
+from .logging import WithLog, logger
 
 
-class WithEventLoop(CtorRepr):
+class WithEventLoop(WithLog, CtorRepr):
     """A simple mixin that takes an optional event loop."""
 
     __slots__ = ('__loop',)
@@ -36,7 +36,7 @@ class WithEventLoop(CtorRepr):
         return self.__loop
 
 
-class PeriodicCaller(WithEventLoop, CtorRepr):
+class PeriodicCaller(WithEventLoop, WithLog, CtorRepr):
     """A facility to run a callback periodically.
 
     :param `~collections.abc.Callable` cb: what to call periodically.
@@ -118,11 +118,13 @@ class PeriodicCaller(WithEventLoop, CtorRepr):
             given or `None`, start the first call after a full period from now.
         """
         if self.__next is not None:
+            self._debug("already started")
             return
         if at is None:
             self.__next = self.loop.time() + self.__period
         else:
             self.__next = at
+        self._debug("next call at {!r}", self.__next)
         self.__pending = self.loop.call_at(self.__next, self.__handle_expire)
 
     def stop(self):
@@ -131,25 +133,31 @@ class PeriodicCaller(WithEventLoop, CtorRepr):
         Do nothing if periodic calls have not been started.
         """
         if self.__next is None:
+            self._debug("already stopped")
             return
         self.__pending.cancel()
         self.__pending = None
         self.__next = None
+        self._debug("stopped")
 
     def __handle_expire(self):
         # Do not use asyncio.iscoroutinefunction() to test self.__cb itself,
         # because it fails to catch ones with partial()-ly bound arguments.
+        self._debug("called at {!r}", self.__next)
         try:
             r = self.__cb(self.__next)
         except Exception as e:
+            self._debug("callback raised {!r}", e)
             self.__handle_exc(e)
             self.__schedule_next()
         else:
             if not iscoroutine(r):
+                self._debug("callback was synchronous")
                 self.__handle_ret(r)
                 self.__schedule_next()
             elif self.__bg:
                 task = self.loop.create_task(r)
+                self._debug("scheduled background task {!r}", task)
                 try:
                     self.__bg(task)  # catches `True`-not-callable errors too
                 except Exception:
@@ -158,14 +166,18 @@ class PeriodicCaller(WithEventLoop, CtorRepr):
             else:
                 task = self.loop.create_task(self.__await_coroutine(r))
                 self.__pending = task
+                self._debug("scheduled foreground task {!r}", task)
 
     @coroutine
     def __await_coroutine(self, coro):
+        self._debug("awaiting foreground coroutine {!r}", coro)
         try:
             r = yield from coro
         except Exception as e:
+            self._debug("{!r} raised {!r}", coro, e)
             self.__handle_exc(e)
         else:
+            self._debug("{!r} returned {!r}", coro, r)
             self.__handle_ret(r)
         self.__schedule_next()
 
@@ -187,6 +199,7 @@ class PeriodicCaller(WithEventLoop, CtorRepr):
             return
         self.__next += self.__period
         self.__pending = self.loop.call_at(self.__next, self.__handle_expire)
+        self._debug("next call at {!r}", self.__next)
 
 
 @contextmanager

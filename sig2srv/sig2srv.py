@@ -8,11 +8,11 @@ from signal import SIGTERM, SIGHUP
 
 from ctorrepr import CtorRepr
 
-from .logging import logger, __
+from .logging import WithLog
 from .asynchelper import periodic_calls, WithEventLoop, signal_handled
 
 
-class ServiceCommandRunner(WithEventLoop, CtorRepr):
+class ServiceCommandRunner(WithEventLoop, WithLog, CtorRepr):
     """Serialized service(8) command runner.
 
     :param `str` name: service name, such as ``apache``.
@@ -44,10 +44,10 @@ class ServiceCommandRunner(WithEventLoop, CtorRepr):
         """
         async with self.__lock:
             args = ('service', self.__name) + args
-            logger.debug(__("running {}", args))
+            self._debug("running {}", args)
             proc = await create_subprocess_exec(*args, loop=self.loop)
             result = await proc.wait()
-            logger.debug(__("{} returned {}", args, result))
+            self._debug("{} returned {}", args, result)
             return result
 
 
@@ -55,7 +55,7 @@ class FatalError(RuntimeError):
     """Fatal errors that abort the execution of the main routine."""
 
 
-class Sig2Srv(CtorRepr):
+class Sig2Srv(WithLog, CtorRepr):
     """Signal-to-service bridge.
 
     :param `ServiceCommandRunner` runner: service command runner.
@@ -72,7 +72,6 @@ class Sig2Srv(CtorRepr):
 
     def __init__(self, *poargs, runner, **kwargs):
         """Initialize this instance."""
-        logger.debug(__("initializing {!r}", self))
         super().__init__(*poargs, **kwargs)
         self.__runner = runner
         self.__finished = Event()
@@ -101,7 +100,7 @@ class Sig2Srv(CtorRepr):
 
     @__state.setter
     def __state(self, new_state):
-        logger.debug(__("new state is {}", new_state))
+        self._debug("new state is {}", new_state)
         self.__state_ = new_state
 
     def __signal_handled(self, *poargs, **kwargs):
@@ -129,9 +128,9 @@ class Sig2Srv(CtorRepr):
             self.__state = self.State.RUNNING
             self.__fatal_error = None
             self.__finished.clear()
-            logger.debug("awaiting finish")
+            self._debug("awaiting finish")
             await self.__finished.wait()
-            logger.debug("finished")
+            self._debug("finished")
         if self.__fatal_error is not None:
             raise self.__fatal_error
         assert self.__state == self.State.STOPPED
@@ -146,7 +145,7 @@ class Sig2Srv(CtorRepr):
 
     async def __stop(self):
         if self.__state != self.State.RUNNING:
-            logger.debug("loop not running, doing nothing")
+            self._debug("loop not running, doing nothing")
             return
         self.__state = self.State.STOPPING
         result = await self.__runner.run('stop')
@@ -161,7 +160,7 @@ class Sig2Srv(CtorRepr):
 
     async def __restart(self):
         if self.__state != self.State.RUNNING:
-            logger.debug("loop not running, doing nothing")
+            self._debug("loop not running, doing nothing")
             return
         self.__state = self.State.STOPPING
         result = await self.__runner.run('stop')
