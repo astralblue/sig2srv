@@ -9,6 +9,7 @@ import pytest
 
 from sig2srv.asynchelper import (WithEventLoop, PeriodicCaller, periodic_calls,
                                  signal_handled)
+from tests.eventloopfixture import event_loop
 
 
 class TestWithEventLoop:
@@ -308,7 +309,8 @@ class TestPeriodicCaller:
         tm = TimeMachine(event_loop=event_loop)
         handles = []
         remaining = 10
-        async def cb(ts):
+        @coroutine
+        def cb(ts):
             nonlocal remaining
             tm.advance_by(1)
             ret = remaining

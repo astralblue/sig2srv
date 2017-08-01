@@ -3,7 +3,7 @@
 
 """Tests for `sig2srv` package."""
 
-from asyncio import get_event_loop
+from asyncio import coroutine, get_event_loop
 from logging import StreamHandler, DEBUG
 from os import kill
 from signal import SIGHUP, SIGTERM
@@ -13,6 +13,7 @@ from asynciotimemachine import TimeMachine
 import pytest
 
 from sig2srv.sig2srv import ServiceCommandRunner, Sig2Srv, FatalError
+from tests.eventloopfixture import event_loop
 
 
 class TestServiceCommandRunner:
@@ -39,20 +40,21 @@ class TestServiceCommandRunner:
             runner.loop = event_loop
             del runner.loop
 
-    @pytest.mark.asyncio
-    async def test_run(self, runner, event_loop):
+    def test_run(self, runner, event_loop):
         proc = MagicMock(spec_set=['wait'])
-        async def cse_coro():
+        @coroutine
+        def cse_coro():
             assert runner._ServiceCommandRunner__lock.locked()
             return proc
         status = object()
-        async def wait_coro():
+        @coroutine
+        def wait_coro():
             assert runner._ServiceCommandRunner__lock.locked()
             return status
         with patch('sig2srv.sig2srv.create_subprocess_exec',
                    autospec=True, return_value=cse_coro()) as cse, \
              patch.object(proc, 'wait', return_value=wait_coro()) as wait:
-            result = await runner.run('foo', 'bar')
+            result = event_loop.run_until_complete(runner.run('foo', 'bar'))
             cse.assert_called_once_with('service', self.SERVICE_NAME,
                                         'foo', 'bar',
                                         loop=event_loop)
@@ -86,20 +88,20 @@ class TestSig2Srv:
     def sig2srv(self, runner):
         return Sig2Srv(runner=runner)
 
-    @pytest.mark.asyncio
-    async def test_start_failure_aborts_run(self, sig2srv):
-        async def run(verb, *args):
+    def test_start_failure_aborts_run(self, sig2srv, event_loop):
+        @coroutine
+        def run(verb, *args):
             return 1 if verb == 'start' else 0
         sig2srv.runner.run.side_effect = run
         with pytest.raises(FatalError):
-            await sig2srv.run()
+            event_loop.run_until_complete(sig2srv.run())
         assert sig2srv.runner.run.call_args_list == [call('start')]
 
-    @pytest.mark.asyncio
-    async def test_run_installs_sigterm_sighup_handlers(self, sig2srv):
+    def test_run_installs_sigterm_sighup_handlers(self, sig2srv, event_loop):
         with patch.object(sig2srv.runner.loop, 'add_signal_handler') as ash, \
              patch.object(sig2srv.runner.loop, 'remove_signal_handler') as rsh:
-            async def run(verb, *args):
+            @coroutine
+            def run(verb, *args):
                 assert sorted(ash.call_args_list) == sorted([
                         call(SIGHUP, ANY),
                         call(SIGTERM, ANY),
@@ -109,18 +111,18 @@ class TestSig2Srv:
                 return 1
             sig2srv.runner.run.side_effect = run
             with pytest.raises(FatalError):
-                await sig2srv.run()
+                event_loop.run_until_complete(sig2srv.run())
             ash.assert_not_called()
             assert sorted(rsh.call_args_list) == sorted([
                     call(SIGHUP),
                     call(SIGTERM),
             ])
 
-    @pytest.mark.asyncio
-    async def test_status_failure_aborts_run(self, sig2srv):
+    def test_status_failure_aborts_run(self, sig2srv, event_loop):
         tm = TimeMachine(event_loop=sig2srv.runner.loop)
         remaining = 1
-        async def run(verb, *args):
+        @coroutine
+        def run(verb, *args):
             nonlocal remaining
             tm.advance_by(5)
             if verb == 'status':
@@ -130,34 +132,34 @@ class TestSig2Srv:
             return 0
         sig2srv.runner.run.side_effect = run
         with pytest.raises(FatalError):
-            await sig2srv.run()
+            event_loop.run_until_complete(sig2srv.run())
         assert sig2srv.runner.run.call_args_list == [
                 call('start'),
                 call('status'),
                 call('status'),
         ]
 
-    @pytest.mark.asyncio
-    async def test_sigterm_stops_run(self, sig2srv):
+    def test_sigterm_stops_run(self, sig2srv, event_loop):
         signaled = False
-        async def run(verb, *args):
+        @coroutine
+        def run(verb, *args):
             nonlocal signaled
             if not signaled:
                 kill(0, SIGTERM)
                 signaled = True
             return 0
         sig2srv.runner.run.side_effect = run
-        await sig2srv.run()
+        event_loop.run_until_complete(sig2srv.run())
         assert sig2srv.runner.run.call_args_list == [
                 call('start'),
                 call('stop'),
         ]
 
-    @pytest.mark.asyncio
-    async def test_state_transitions(self, sig2srv):
+    def test_state_transitions(self, sig2srv, event_loop):
         started = False
         tm = TimeMachine(event_loop=sig2srv.runner.loop)
-        async def run(verb, *args):
+        @coroutine
+        def run(verb, *args):
             if verb == 'start':
                 assert sig2srv.state is Sig2Srv.State.STARTING
                 tm.advance_by(5)
@@ -168,18 +170,18 @@ class TestSig2Srv:
                 assert sig2srv.state is Sig2Srv.State.STOPPING
             return 0
         sig2srv.runner.run.side_effect = run
-        await sig2srv.run()
+        event_loop.run_until_complete(sig2srv.run())
         assert sig2srv.runner.run.call_args_list == [
                 call('start'),
                 call('status'),
                 call('stop'),
         ]
 
-    @pytest.mark.asyncio
-    async def test_sighup_restarts_run(self, sig2srv):
+    def test_sighup_restarts_run(self, sig2srv, event_loop):
         restarted = False
         stopped = False
-        async def run(verb, *args):
+        @coroutine
+        def run(verb, *args):
             nonlocal restarted, stopped
             if verb == 'start':
                 assert sig2srv.state is Sig2Srv.State.STARTING
@@ -193,7 +195,7 @@ class TestSig2Srv:
                 assert sig2srv.state is Sig2Srv.State.STOPPING
             return 0
         sig2srv.runner.run.side_effect = run
-        await sig2srv.run()
+        event_loop.run_until_complete(sig2srv.run())
         assert sig2srv.runner.run.call_args_list == [
                 call('start'),
                 call('stop'),
@@ -201,38 +203,40 @@ class TestSig2Srv:
                 call('stop'),
         ]
 
-    @pytest.mark.asyncio
-    async def test_stop_failure_aborts_run(self, sig2srv):
-        async def run(verb, *args):
+    def test_stop_failure_aborts_run(self, sig2srv, event_loop):
+        @coroutine
+        def run(verb, *args):
             if verb == 'start':
                 kill(0, SIGTERM)
             return 1 if verb == 'stop' else 0
         sig2srv.runner.run.side_effect = run
         with pytest.raises(FatalError):
-            await sig2srv.run()
+            event_loop.run_until_complete(sig2srv.run())
         assert sig2srv.runner.run.call_args_list == [
                 call('start'),
                 call('stop'),
         ]
 
-    @pytest.mark.asyncio
-    async def test_stop_failure_aborts_run_while_restarting(self, sig2srv):
-        async def run(verb, *args):
+    def test_stop_failure_aborts_run_while_restarting(self, sig2srv,
+                                                      event_loop):
+        @coroutine
+        def run(verb, *args):
             if verb == 'start':
                 kill(0, SIGHUP)
             return 1 if verb == 'stop' else 0
         sig2srv.runner.run.side_effect = run
         with pytest.raises(FatalError):
-            await sig2srv.run()
+            event_loop.run_until_complete(sig2srv.run())
         assert sig2srv.runner.run.call_args_list == [
                 call('start'),
                 call('stop'),
         ]
 
-    @pytest.mark.asyncio
-    async def test_start_failure_aborts_run_while_restarting(self, sig2srv):
+    def test_start_failure_aborts_run_while_restarting(self, sig2srv,
+                                                       event_loop):
         started = False
-        async def run(verb, *args):
+        @coroutine
+        def run(verb, *args):
             nonlocal started
             if verb == 'start':
                 if not started:
@@ -243,7 +247,7 @@ class TestSig2Srv:
             return 0
         sig2srv.runner.run.side_effect = run
         with pytest.raises(FatalError):
-            await sig2srv.run()
+            event_loop.run_until_complete(sig2srv.run())
         assert sig2srv.runner.run.call_args_list == [
                 call('start'),
                 call('stop'),

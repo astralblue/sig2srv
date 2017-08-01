@@ -2,7 +2,7 @@
 
 """Main module."""
 
-from asyncio import Event, Lock, create_subprocess_exec
+from asyncio import Event, Lock, coroutine, create_subprocess_exec
 from enum import Enum
 from signal import SIGTERM, SIGHUP
 
@@ -32,7 +32,8 @@ class ServiceCommandRunner(WithEventLoop, WithLog, CtorRepr):
         """The service name."""
         return self.__name
 
-    async def run(self, *args):
+    @coroutine
+    def run(self, *args):
         """Run ``service <name> <args>``.
 
         Do not permit concurrent runs: If another one is already running, wait
@@ -42,13 +43,16 @@ class ServiceCommandRunner(WithEventLoop, WithLog, CtorRepr):
             Its first element should be a service(8) verb such as ``start``.
         :return: the exit status of the given command.
         """
-        async with self.__lock:
+        yield from self.__lock.acquire()
+        try:
             args = ('service', self.__name) + args
             self._debug("running {}", args)
-            proc = await create_subprocess_exec(*args, loop=self.loop)
-            result = await proc.wait()
+            proc = yield from create_subprocess_exec(*args, loop=self.loop)
+            result = yield from proc.wait()
             self._debug("{} returned {}", args, result)
             return result
+        finally:
+            self.__lock.release()
 
 
 class FatalError(RuntimeError):
@@ -114,14 +118,15 @@ class Sig2Srv(WithLog, CtorRepr):
             self.__fatal_error = e
             raise
 
-    async def run(self):
+    @coroutine
+    def run(self):
         """Run the state machine."""
         assert self.__state == self.State.STOPPED
         with self.__signal_handled(SIGTERM, self.__handle_stop_signal), \
              self.__signal_handled(SIGHUP, self.__handle_restart_signal), \
              periodic_calls(self.__check_status, 5):
             self.__state = self.State.STARTING
-            result = await self.__runner.run('start')
+            result = yield from self.__runner.run('start')
             if result != 0:
                 self.__state = self.State.STOPPED
                 raise FatalError("failed to start service")
@@ -129,26 +134,28 @@ class Sig2Srv(WithLog, CtorRepr):
             self.__fatal_error = None
             self.__finished.clear()
             self._debug("awaiting finish")
-            await self.__finished.wait()
+            yield from self.__finished.wait()
             self._debug("finished")
         if self.__fatal_error is not None:
             raise self.__fatal_error
         assert self.__state == self.State.STOPPED
 
-    async def __check_status(self, timestamp):
-        result = await self.__runner.run('status')
+    @coroutine
+    def __check_status(self, timestamp):
+        result = yield from self.__runner.run('status')
         if result != 0 and self.__state == self.State.RUNNING:
             self.__fatal("service stopped unexpectedly")
 
     def __handle_stop_signal(self):
         self.__runner.loop.create_task(self.__stop())
 
-    async def __stop(self):
+    @coroutine
+    def __stop(self):
         if self.__state != self.State.RUNNING:
             self._debug("loop not running, doing nothing")
             return
         self.__state = self.State.STOPPING
-        result = await self.__runner.run('stop')
+        result = yield from self.__runner.run('stop')
         if result != 0:
             self.__state = self.State.UNKNOWN
             self.__fatal("failed to stop service while stopping")
@@ -158,17 +165,18 @@ class Sig2Srv(WithLog, CtorRepr):
     def __handle_restart_signal(self):
         self.__runner.loop.create_task(self.__restart())
 
-    async def __restart(self):
+    @coroutine
+    def __restart(self):
         if self.__state != self.State.RUNNING:
             self._debug("loop not running, doing nothing")
             return
         self.__state = self.State.STOPPING
-        result = await self.__runner.run('stop')
+        result = yield from self.__runner.run('stop')
         if result != 0:
             self.__state = self.State.UNKNOWN
             self.__fatal("failed to stop service while restarting")
         self.__state = self.State.STARTING
-        result = await self.__runner.run('start')
+        result = yield from self.__runner.run('start')
         if result != 0:
             self.__state = self.State.STOPPED
             self.__fatal("failed to start service while restarting")
