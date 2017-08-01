@@ -13,7 +13,7 @@ from tests.eventloopfixture import event_loop
 
 
 class TestWithEventLoop:
-    def test_init_uses_default_loop_if_not_given(self, event_loop):
+    def test_init_uses_default_loop_if_not_given(self):
         sut = WithEventLoop()
         assert sut.loop is get_event_loop()
 
