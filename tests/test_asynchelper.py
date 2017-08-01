@@ -149,7 +149,8 @@ class TestPeriodicCaller:
 
     def __cb_timestamp_test(self, event_loop, scheduled, start_at):
         tm = TimeMachine(event_loop=event_loop)
-        sentinel = ensure_future(sleep(scheduled[-1] - event_loop.time() + 1),
+        sentinel = ensure_future(sleep(scheduled[-1] - event_loop.time() + 1,
+                                       loop=event_loop),
                                  loop=event_loop)
         remaining = scheduled.copy()
         called = []
@@ -196,7 +197,7 @@ class TestPeriodicCaller:
 
     def test_on_ret_called_with_sync_retval(self, event_loop):
         tm = TimeMachine(event_loop=event_loop)
-        sentinel = ensure_future(sleep(2), loop=event_loop)
+        sentinel = ensure_future(sleep(2, loop=event_loop), loop=event_loop)
         def cb(ts):
             sentinel.cancel()
             return 123
@@ -212,7 +213,7 @@ class TestPeriodicCaller:
 
     def test_on_exc_called_with_sync_exception(self, event_loop):
         tm = TimeMachine(event_loop=event_loop)
-        sentinel = ensure_future(sleep(2), loop=event_loop)
+        sentinel = ensure_future(sleep(2, loop=event_loop), loop=event_loop)
         raised = []
         def cb(ts):
             sentinel.cancel()
@@ -235,7 +236,7 @@ class TestPeriodicCaller:
 
     def test_on_ret_called_with_async_fg_retval(self, event_loop):
         tm = TimeMachine(event_loop=event_loop)
-        sentinel = ensure_future(sleep(2), loop=event_loop)
+        sentinel = ensure_future(sleep(2, loop=event_loop), loop=event_loop)
         @coroutine
         def cb(ts):
             sentinel.cancel()
@@ -252,7 +253,7 @@ class TestPeriodicCaller:
 
     def test_on_exc_called_with_async_fg_exception(self, event_loop):
         tm = TimeMachine(event_loop=event_loop)
-        sentinel = ensure_future(sleep(2), loop=event_loop)
+        sentinel = ensure_future(sleep(2, loop=event_loop), loop=event_loop)
         raised = []
         @coroutine
         def cb(ts):

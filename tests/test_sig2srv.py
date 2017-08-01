@@ -61,6 +61,9 @@ class TestServiceCommandRunner:
             wait.assert_called_once_with()
             assert result is status
 
+    def test_lock_is_in_the_same_loop(self, runner, event_loop):
+        assert runner._ServiceCommandRunner__lock._loop is event_loop
+
 
 @pytest.mark.timeout(5)
 class TestSig2Srv:
@@ -253,3 +256,6 @@ class TestSig2Srv:
                 call('stop'),
                 call('start'),
         ]
+
+    def test_finished_event_is_in_the_same_loop(self, sig2srv, event_loop):
+        assert sig2srv._Sig2Srv__finished._loop is event_loop

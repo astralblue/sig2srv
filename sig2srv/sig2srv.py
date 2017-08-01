@@ -23,7 +23,7 @@ class ServiceCommandRunner(WithEventLoop, WithLog, CtorRepr):
         """Initialize this instance."""
         super().__init__(*poargs, **kwargs)
         self.__name = name
-        self.__lock = Lock()
+        self.__lock = Lock(loop=self.loop)
 
     def _collect_repr_args(self, poargs, kwargs):
         super()._collect_repr_args(poargs, kwargs)
@@ -80,7 +80,7 @@ class Sig2Srv(WithLog, CtorRepr):
         """Initialize this instance."""
         super().__init__(*poargs, **kwargs)
         self.__runner = runner
-        self.__finished = Event()
+        self.__finished = Event(loop=runner.loop)
         self.__state = self.State.STOPPED
 
     def _collect_repr_args(self, poargs, kwargs):
@@ -128,7 +128,8 @@ class Sig2Srv(WithLog, CtorRepr):
             sec = stack.enter_context
             sec(self.__signal_handled(SIGTERM, self.__handle_stop_signal))
             sec(self.__signal_handled(SIGHUP, self.__handle_restart_signal))
-            sec(periodic_calls(self.__check_status, 5))
+            sec(periodic_calls(self.__check_status, 5,
+                               loop=self.__runner.loop))
             self.__state = self.State.STARTING
             result = yield from self.__runner.run('start')
             if result != 0:
