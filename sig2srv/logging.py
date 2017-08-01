@@ -13,6 +13,7 @@ class BraceMessage(CtorRepr):
 
     def __init__(self, fmt, *poargs, **kwargs):
         """Initialize this instance."""
+        super().__init__()
         self.fmt = fmt
         self.poargs = poargs
         self.kwargs = kwargs
