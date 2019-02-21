@@ -173,7 +173,7 @@ class TestPeriodicCaller:
         now = event_loop.time()
         scheduled = [now + i for i in range(1, 5)]
         called = self.__cb_timestamp_test(event_loop, scheduled, None)
-        assert called == pytest.approx(scheduled)
+        assert called == pytest.approx(scheduled, abs=0.01)
 
     def test_start_at_passes_exact_scheduled_time(self, event_loop):
         start_at = event_loop.time() + 1
