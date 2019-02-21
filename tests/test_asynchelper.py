@@ -1,5 +1,5 @@
-from asyncio import (CancelledError, Event, Task, coroutine,
-                     async as ensure_future, get_event_loop, sleep)
+from asyncio import (CancelledError, Event, Task, coroutine, ensure_future,
+                     get_event_loop, sleep)
 from contextlib import contextmanager
 import sys
 from unittest.mock import MagicMock, patch, ANY
